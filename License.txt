@@ -1,0 +1,9 @@
+Copyright (c) 2025 Alexander Sod
+
+This code is available for personal, educational, and non-commercial use only.
+
+You may view, use, and modify the code for non-commercial purposes, provided that proper attribution is given.
+
+Commercial use, including but not limited to selling, sublicensing, or using this software in a product or service for profit, is strictly prohibited without prior written permission.
+
+To request commercial use rights, contact: alexsodarnal07@gmail.com
