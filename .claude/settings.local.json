@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x /Users/alexsod/Documents/QuantSystemV2/run_app.py)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(find:*)",
+      "Bash(rg:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  }
+}
