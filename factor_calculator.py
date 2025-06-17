@@ -199,6 +199,69 @@ class FactorCalculator:
         
         return df
     
+    def filter_outliers_iterative_25std(self, data: pd.DataFrame, column: str = 'pe_ratio', 
+                                      max_iterations: int = 10) -> pd.DataFrame:
+        """
+        Detect outliers using iterative 2.5 standard deviation method.
+        Any company with a P/E ratio greater than 2.5 std devs away from mean 
+        (calculated iteratively by industry) is marked as an outlier.
+        
+        Args:
+            data: DataFrame with the data
+            column: Column to check for outliers (P/E ratio)
+            max_iterations: Maximum number of iterations to prevent infinite loops
+            
+        Returns:
+            DataFrame with 'is_outlier' column added
+        """
+        df = data.copy()
+        df['is_outlier'] = False
+        
+        for sector in df['sector'].unique():
+            sector_mask = df['sector'] == sector
+            sector_data = df[sector_mask].copy()
+            
+            if len(sector_data) < 5:  # Need minimum data for meaningful statistics
+                continue
+            
+            values = sector_data[column].dropna()
+            if len(values) < 5:
+                continue
+            
+            # Iterative outlier detection with 2.5 std dev threshold
+            outlier_indices = set()
+            current_values = values.copy()
+            
+            for iteration in range(max_iterations):
+                if len(current_values) < 3:  # Stop if too few values remain
+                    break
+                
+                # Calculate mean and std for current iteration
+                mean_val = current_values.mean()
+                std_val = current_values.std()
+                
+                if std_val == 0:  # No variation, no outliers
+                    break
+                
+                # Find outliers: values > 2.5 std devs from mean
+                z_scores = np.abs((current_values - mean_val) / std_val)
+                new_outliers = current_values[z_scores > 2.5].index.tolist()
+                
+                if not new_outliers:  # No new outliers found
+                    break
+                
+                # Add new outliers to the set
+                outlier_indices.update(new_outliers)
+                
+                # Remove outliers from current values for next iteration
+                current_values = current_values.drop(new_outliers)
+            
+            # Mark outliers in the main dataframe
+            for idx in outlier_indices:
+                df.loc[idx, 'is_outlier'] = True
+        
+        return df
+
     def filter_outliers_iterative_zscore(self, data: pd.DataFrame, column: str = 'pe_ratio', 
                                        z_threshold: float = 3.5, max_iterations: int = 5) -> pd.DataFrame:
         """
@@ -284,17 +347,9 @@ class FactorCalculator:
         # Step 2: Calculate factor scores
         df = self.calculate_factor_scores(df, selected_factors)
         
-        # Step 3: Filter outliers using sector-appropriate method
-        # Use more conservative iterative z-score method for high-variance sectors like Technology
-        tech_sectors = ['Technology', 'Communication Services']
-        has_tech_sector = any(sector in df['sector'].unique() for sector in tech_sectors)
-        
-        if has_tech_sector:
-            # Use iterative z-score method for tech stocks (more conservative threshold)
-            df = self.filter_outliers_iterative_zscore(df, column='pe_ratio', z_threshold=3.5)
-        else:
-            # Use IQR method for other sectors (more conservative threshold)
-            df = self.filter_outliers(df, column='pe_ratio', iqr_threshold=4.0)
+        # Step 3: Filter outliers using iterative 2.5 std dev method
+        # Use 2.5 standard deviation threshold as specified
+        df = self.filter_outliers_iterative_25std(df, column='pe_ratio')
         
         # Step 3.1: For modeling, exclude outliers but keep them for individual analysis
         # Store original data with outlier flags for later use
@@ -343,14 +398,8 @@ class FactorCalculator:
                     factor_score = self.calculate_factor_score(sector_data, factor_name, metrics)
                     df.loc[df['sector'] == sector, f'{factor_name}_score'] = factor_score
         
-        # Step 2: Mark outliers but don't exclude them
-        tech_sectors = ['Technology', 'Communication Services']
-        has_tech_sector = any(sector in df['sector'].unique() for sector in tech_sectors)
-        
-        if has_tech_sector:
-            df = self.filter_outliers_iterative_zscore(df, column='pe_ratio', z_threshold=3.5)
-        else:
-            df = self.filter_outliers(df, column='pe_ratio', iqr_threshold=4.0)
+        # Step 2: Mark outliers but don't exclude them - use 2.5 std dev method
+        df = self.filter_outliers_iterative_25std(df, column='pe_ratio')
         
         # Step 3: Remove rows with missing P/E ratios or negative P/E ratios
         df = df[df['pe_ratio'].notna()]

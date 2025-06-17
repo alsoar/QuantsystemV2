@@ -5,6 +5,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_squared_error
 from scipy.optimize import minimize
+from scipy import stats
 import warnings
 from typing import Dict, List, Optional, Tuple
 from factor_calculator import FactorCalculator
@@ -19,6 +20,60 @@ class ModelEngine:
         self.scalers = {}  # Store scalers for each sector
         self.sector_stats = {}  # Store sector statistics
     
+    def calculate_slope_significance(self, X: np.ndarray, y: np.ndarray, alpha: float = 0.1) -> Dict:
+        """
+        Calculate statistical significance of slope coefficient at given alpha level (default p=0.1)
+        Returns p-value, t-statistic, and significance flag
+        """
+        try:
+            n = len(X)
+            if n < 3:
+                return {'p_value': np.nan, 't_statistic': np.nan, 'is_significant': False}
+            
+            # Calculate slope and residuals
+            X_mean = np.mean(X)
+            y_mean = np.mean(y)
+            
+            # Calculate slope using least squares
+            numerator = np.sum((X - X_mean) * (y - y_mean))
+            denominator = np.sum((X - X_mean) ** 2)
+            
+            if denominator == 0:
+                return {'p_value': np.nan, 't_statistic': np.nan, 'is_significant': False}
+            
+            slope = numerator / denominator
+            intercept = y_mean - slope * X_mean
+            
+            # Calculate predicted values and residuals
+            y_pred = slope * X + intercept
+            residuals = y - y_pred
+            
+            # Calculate standard error of slope
+            mse = np.sum(residuals ** 2) / (n - 2)  # degrees of freedom = n - 2
+            se_slope = np.sqrt(mse / np.sum((X - X_mean) ** 2))
+            
+            # Calculate t-statistic (testing H0: slope = 0)
+            t_statistic = slope / se_slope
+            
+            # Calculate p-value (two-tailed test)
+            p_value = 2 * (1 - stats.t.cdf(abs(t_statistic), df=n-2))
+            
+            # Check if significant at given alpha level
+            is_significant = p_value < alpha
+            
+            return {
+                'p_value': p_value,
+                't_statistic': t_statistic,
+                'is_significant': is_significant,
+                'slope': slope,
+                'se_slope': se_slope,
+                'degrees_freedom': n - 2
+            }
+            
+        except Exception as e:
+            print(f"Error calculating slope significance: {str(e)}")
+            return {'p_value': np.nan, 't_statistic': np.nan, 'is_significant': False}
+
     def optimize_factor_weights_for_positive_correlation(self, X: pd.DataFrame, y: pd.Series) -> np.ndarray:
         """
         Optimize factor weights to ensure positive correlation between fundamental score and P/E ratio
@@ -132,6 +187,9 @@ class ModelEngine:
             # Calculate correlation to verify it's positive
             correlation = np.corrcoef(fundamental_scores, y)[0, 1]
             
+            # Calculate significance test for slope at p = 0.1
+            significance_test = self.calculate_slope_significance(fundamental_scores, y.values, alpha=0.1)
+            
             # Calculate residuals for fair value line
             residuals = y - y_pred
             residual_std = residuals.std()
@@ -154,7 +212,8 @@ class ModelEngine:
                 'correlation': correlation,
                 'equation': f'P/E = {slope:.4f} × Fundamental_Score + {intercept:.4f}',
                 'pe_mean': y.mean(),
-                'pe_std': y.std()
+                'pe_std': y.std(),
+                'slope_significance': significance_test
             }
             
             # Add predictions to prepared data
@@ -240,7 +299,8 @@ class ModelEngine:
                 'equation': model_info['equation'],
                 'slope': model_info['slope'],
                 'intercept': model_info['intercept'],
-                'correlation': model_info.get('correlation', 0)
+                'correlation': model_info.get('correlation', 0),
+                'slope_significance': model_info.get('slope_significance', {})
             }
             
             return result_data
@@ -321,7 +381,8 @@ class ModelEngine:
                     'n_samples': model_info['n_samples'],
                     'correlation': model_info.get('correlation', 0),
                     'equation': model_info['equation'],
-                    'factor_weights': model_info['factor_weights']
+                    'factor_weights': model_info['factor_weights'],
+                    'slope_significance': model_info.get('slope_significance', {})
                 }
             }
             
@@ -346,7 +407,8 @@ class ModelEngine:
                 'equation': model_info['equation'],
                 'slope': model_info['slope'],
                 'intercept': model_info['intercept'],
-                'correlation': model_info.get('correlation', 0)
+                'correlation': model_info.get('correlation', 0),
+                'slope_significance': model_info.get('slope_significance', {})
             }
         return None
     

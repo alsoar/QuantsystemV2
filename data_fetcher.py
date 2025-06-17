@@ -34,19 +34,19 @@ class DataFetcher:
             'Utilities': 'Utilities'
         }
         
-        # Popular tickers by sector for data collection
+        # Popular tickers by sector for data collection (expanded to 60 per sector to ensure 50 after outlier removal)
         self.sector_tickers = {
-            'Technology': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX', 'CRM', 'ADBE', 'INTC', 'CSCO', 'ORCL', 'AMD', 'PYPL', 'UBER', 'SPOT', 'SHOP', 'SQ', 'TWTR'],
-            'Financial Services': ['JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'AXP', 'USB', 'PNC', 'TFC', 'COF', 'BLK', 'SCHW', 'CB', 'ICE', 'CME', 'SPGI', 'MCO', 'AON', 'MMC'],
-            'Consumer Cyclical': ['AMZN', 'TSLA', 'HD', 'MCD', 'NKE', 'SBUX', 'LOW', 'TJX', 'BKNG', 'GM', 'F', 'ABNB', 'EBAY', 'MAR', 'HLT', 'RCL', 'CCL', 'NCLH', 'LVS', 'MGM'],
-            'Communication Services': ['GOOGL', 'META', 'NFLX', 'DIS', 'CMCSA', 'VZ', 'T', 'CHTR', 'TMUS', 'ATVI', 'EA', 'TTWO', 'ROKU', 'PINS', 'SNAP', 'TWTR', 'DISH', 'SIRI', 'IPG', 'OMC'],
-            'Healthcare': ['JNJ', 'UNH', 'PFE', 'ABBV', 'TMO', 'ABT', 'DHR', 'BMY', 'CVS', 'MDT', 'GILD', 'AMGN', 'ISRG', 'VRTX', 'REGN', 'CI', 'HUM', 'ANTM', 'CVS', 'UHS'],
-            'Industrials': ['BA', 'HON', 'UPS', 'RTX', 'LMT', 'CAT', 'DE', 'GE', 'MMM', 'FDX', 'NOC', 'EMR', 'ETN', 'ITW', 'CSX', 'NSC', 'UNP', 'LUV', 'DAL', 'AAL'],
-            'Consumer Defensive': ['PG', 'KO', 'PEP', 'WMT', 'COST', 'MDLZ', 'CL', 'KMB', 'GIS', 'K', 'HSY', 'MKC', 'CPB', 'SJM', 'CAG', 'HRL', 'TSN', 'KHC', 'CHD', 'CLX'],
-            'Energy': ['XOM', 'CVX', 'COP', 'EOG', 'SLB', 'PXD', 'MPC', 'VLO', 'PSX', 'OXY', 'BKR', 'HAL', 'DVN', 'FANG', 'APA', 'MRO', 'HES', 'NOV', 'HP', 'RRC'],
-            'Basic Materials': ['LIN', 'APD', 'SHW', 'ECL', 'FCX', 'NEM', 'DOW', 'DD', 'ALB', 'CE', 'VMC', 'MLM', 'NUE', 'STLD', 'X', 'CLF', 'AA', 'CENX', 'MP', 'LAC'],
-            'Real Estate': ['AMT', 'PLD', 'CCI', 'EQIX', 'SPG', 'O', 'PSA', 'WELL', 'DLR', 'SBAC', 'EXR', 'AVB', 'EQR', 'VTR', 'ESS', 'MAA', 'UDR', 'CPT', 'AIV', 'BXP'],
-            'Utilities': ['NEE', 'DUK', 'SO', 'D', 'AEP', 'EXC', 'SRE', 'PEG', 'XEL', 'WEC', 'ED', 'ETR', 'AWK', 'ES', 'FE', 'AEE', 'DTE', 'PPL', 'CMS', 'NI']
+            'Technology': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX', 'CRM', 'ADBE', 'INTC', 'CSCO', 'ORCL', 'AMD', 'PYPL', 'UBER', 'SPOT', 'SHOP', 'SQ', 'TWTR', 'AVGO', 'TXN', 'QCOM', 'NOW', 'INTU', 'MU', 'AMAT', 'LRCX', 'ADI', 'KLAC', 'MRVL', 'SNPS', 'CDNS', 'FTNT', 'TEAM', 'WDAY', 'ZM', 'DOCU', 'OKTA', 'CRWD', 'NET', 'DDOG', 'SNOW', 'PLTR', 'RBLX', 'U', 'FSLY', 'TWLO', 'ZS', 'ESTC', 'SPLK', 'VEEV', 'RNG', 'COUP', 'BILL', 'PAYC', 'PCTY', 'SMAR', 'APPN', 'WORK'],
+            'Financial Services': ['JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'AXP', 'USB', 'PNC', 'TFC', 'COF', 'BLK', 'SCHW', 'CB', 'ICE', 'CME', 'SPGI', 'MCO', 'AON', 'MMC', 'V', 'MA', 'BRK-B', 'BX', 'KKR', 'APO', 'CG', 'MKTX', 'NDAQ', 'MSCI', 'FIS', 'FISV', 'GPN', 'AJG', 'BRO', 'PGR', 'ALL', 'TRV', 'AFL', 'MET', 'PRU', 'AIG', 'L', 'GL', 'RGA', 'RE', 'ACGL', 'CINF', 'Y', 'WTW', 'TROW', 'IVZ', 'NTRS', 'STT', 'BK', 'RF', 'CFG', 'KEY', 'HBAN', 'FITB'],
+            'Consumer Cyclical': ['AMZN', 'TSLA', 'HD', 'MCD', 'NKE', 'SBUX', 'LOW', 'TJX', 'BKNG', 'GM', 'F', 'ABNB', 'EBAY', 'MAR', 'HLT', 'RCL', 'CCL', 'NCLH', 'LVS', 'MGM', 'ORLY', 'AZO', 'ROST', 'YUM', 'CMG', 'DPZ', 'QSR', 'DRI', 'EAT', 'DIN', 'BJRI', 'CAKE', 'BLMN', 'TXRH', 'SHAK', 'WING', 'PZZA', 'RUTH', 'JACK', 'SONC', 'DAVE', 'WEN', 'MCD', 'YUM', 'SBUX', 'CMG', 'DPZ', 'QSR', 'DRI', 'EAT', 'DIN', 'BJRI', 'CAKE', 'BLMN', 'TXRH', 'SHAK', 'WING', 'PZZA', 'RUTH'],
+            'Communication Services': ['GOOGL', 'META', 'NFLX', 'DIS', 'CMCSA', 'VZ', 'T', 'CHTR', 'TMUS', 'ATVI', 'EA', 'TTWO', 'ROKU', 'PINS', 'SNAP', 'TWTR', 'DISH', 'SIRI', 'IPG', 'OMC', 'GOOG', 'WBD', 'PARA', 'FOX', 'FOXA', 'LUMN', 'FYBR', 'CABO', 'FUBO', 'GSAT', 'IRDM', 'VIAC', 'DISCA', 'DISCK', 'LILAK', 'LILA', 'BATRK', 'BATRA', 'FWONK', 'FWONA', 'LSXMK', 'LSXMA', 'LSXMB', 'TRIP', 'MTCH', 'BMBL', 'MSGS', 'MSGN', 'NWSA', 'NWS', 'WMG', 'LYV', 'EDR', 'REZI', 'CARS', 'ANGI', 'IAC', 'QNST', 'ZNGA'],
+            'Healthcare': ['JNJ', 'UNH', 'PFE', 'ABBV', 'TMO', 'ABT', 'DHR', 'BMY', 'CVS', 'MDT', 'GILD', 'AMGN', 'ISRG', 'VRTX', 'REGN', 'CI', 'HUM', 'ANTM', 'CVS', 'UHS', 'LLY', 'MRK', 'BIIB', 'ILMN', 'BDX', 'BSX', 'EW', 'SYK', 'ZBH', 'BAX', 'PKI', 'A', 'WST', 'RMD', 'HOLX', 'TFX', 'DXCM', 'ZTS', 'IDXX', 'IQV', 'CRL', 'LH', 'DGX', 'MTD', 'TECH', 'MOH', 'CNC', 'VEEV', 'TDOC', 'DOCU', 'AMWL', 'OCDX', 'HCAT', 'MRNA', 'BNTX', 'NVAX', 'VCEL', 'BLUE', 'BEAM'],
+            'Industrials': ['BA', 'HON', 'UPS', 'RTX', 'LMT', 'CAT', 'DE', 'GE', 'MMM', 'FDX', 'NOC', 'EMR', 'ETN', 'ITW', 'CSX', 'NSC', 'UNP', 'LUV', 'DAL', 'AAL', 'GD', 'TDG', 'CTAS', 'CMI', 'PH', 'ROK', 'DOV', 'PCAR', 'IEX', 'FTV', 'AME', 'ROP', 'LDOS', 'TXT', 'ALLE', 'OTIS', 'CARR', 'PWR', 'JCI', 'IR', 'SWK', 'FAST', 'ODFL', 'XPO', 'CHRW', 'JBHT', 'KNX', 'EXPD', 'LSTR', 'HUBG', 'ARCB', 'MATX', 'GWR', 'AL', 'FWRD', 'SNDR', 'RXO', 'SAIA', 'YELL', 'WERN'],
+            'Consumer Defensive': ['PG', 'KO', 'PEP', 'WMT', 'COST', 'MDLZ', 'CL', 'KMB', 'GIS', 'K', 'HSY', 'MKC', 'CPB', 'SJM', 'CAG', 'HRL', 'TSN', 'KHC', 'CHD', 'CLX', 'MNST', 'KDP', 'STZ', 'TAP', 'BF-B', 'DEO', 'SAM', 'CCEP', 'FMX', 'ABEV', 'BUD', 'BREW', 'COKE', 'KOF', 'FIZZ', 'CELH', 'REED', 'ZVIA', 'PRMW', 'WTER', 'HINT', 'BWT', 'WPRT', 'MNST', 'BANG', 'RMHB', 'KONA', 'NAPA', 'STKL', 'GPRE', 'MGPI', 'LWAY', 'EAST', 'WEST', 'UNFI', 'SFM', 'VLGEA', 'CALM', 'SAFM'],
+            'Energy': ['XOM', 'CVX', 'COP', 'EOG', 'SLB', 'PXD', 'MPC', 'VLO', 'PSX', 'OXY', 'BKR', 'HAL', 'DVN', 'FANG', 'APA', 'MRO', 'HES', 'NOV', 'HP', 'RRC', 'KMI', 'OKE', 'WMB', 'ENB', 'TRP', 'ET', 'EPD', 'MPLX', 'PAA', 'WES', 'AM', 'TRGP', 'EQT', 'CTRA', 'CNX', 'AR', 'SM', 'RIG', 'VAL', 'NE', 'MTDR', 'PR', 'MUR', 'CDEV', 'CPG', 'MEG', 'CVE', 'SU', 'CNQ', 'TOU', 'PBA', 'WCP', 'BTE', 'CJ', 'ERF', 'VET', 'ATH', 'CPE', 'CRC'],
+            'Basic Materials': ['LIN', 'APD', 'SHW', 'ECL', 'FCX', 'NEM', 'DOW', 'DD', 'ALB', 'CE', 'VMC', 'MLM', 'NUE', 'STLD', 'X', 'CLF', 'AA', 'CENX', 'MP', 'LAC', 'PPG', 'RPM', 'FMC', 'LYB', 'CF', 'MOS', 'IFF', 'EMN', 'WLK', 'AXTA', 'OLN', 'CC', 'ASH', 'KWR', 'HUN', 'NEU', 'PRM', 'BCPC', 'ESI', 'GRA', 'KRA', 'OMG', 'PKG', 'SEE', 'SON', 'BCC', 'SLGN', 'TROX', 'FUL', 'HWKN', 'SMG', 'SXT', 'TTEK', 'UEC', 'URG', 'UUUU', 'DNN', 'LTBR', 'LEU', 'PALAF'],
+            'Real Estate': ['AMT', 'PLD', 'CCI', 'EQIX', 'SPG', 'O', 'PSA', 'WELL', 'DLR', 'SBAC', 'EXR', 'AVB', 'EQR', 'VTR', 'ESS', 'MAA', 'UDR', 'CPT', 'AIV', 'BXP', 'VICI', 'HST', 'ARE', 'PEAK', 'SLG', 'REG', 'FRT', 'KIM', 'TCO', 'ROIC', 'WPC', 'NNN', 'STAG', 'KRC', 'HIW', 'DEI', 'CUZ', 'BDN', 'PGRE', 'OFC', 'JBGS', 'SHO', 'RHP', 'ELS', 'UMH', 'SUI', 'MSA', 'CSR', 'AHH', 'ALEX', 'BRX', 'COR', 'CUBE', 'DRH', 'RLJ', 'PEB', 'APLE', 'INN', 'XHR', 'CHCT'],
+            'Utilities': ['NEE', 'DUK', 'SO', 'D', 'AEP', 'EXC', 'SRE', 'PEG', 'XEL', 'WEC', 'ED', 'ETR', 'AWK', 'ES', 'FE', 'AEE', 'DTE', 'PPL', 'CMS', 'NI', 'PCG', 'EIX', 'ATO', 'EVRG', 'CNP', 'VST', 'LNT', 'AES', 'NRG', 'CEG', 'PNW', 'UGI', 'OGE', 'MDU', 'BKH', 'POR', 'SR', 'NWE', 'AVA', 'AGR', 'CPK', 'HE', 'NEP', 'ALE', 'IDA', 'PNM', 'NJR', 'SWX', 'OTTR', 'UTL', 'MGEE', 'AWR', 'CWT', 'YORW', 'ARTNA', 'CTWS', 'SJW', 'MSEX', 'CWCO']
         }
     
     def _get_cache_path(self, filename):
@@ -216,7 +216,7 @@ class DataFetcher:
         except:
             return np.nan
     
-    def get_sector_stocks(self, sector, max_stocks=50):
+    def get_sector_stocks(self, sector, max_stocks=60):
         """Get list of stocks for a specific sector"""
         return self.sector_tickers.get(sector, [])[:max_stocks]
     

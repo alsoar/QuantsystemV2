@@ -343,6 +343,18 @@ def display_sector_stats(results, selected_stock):
             st.metric("Slope", f"{model_info.get('slope', 0):.4f}")
             st.metric("Intercept", f"{model_info.get('intercept', 0):.4f}")
             
+            # Display slope significance
+            if 'slope_significance' in model_info:
+                sig_info = model_info['slope_significance']
+                is_significant = sig_info.get('is_significant', False)
+                p_value = sig_info.get('p_value', np.nan)
+                
+                if not np.isnan(p_value):
+                    if is_significant:
+                        st.markdown(f"<div style='color: green; font-weight: bold;'>Slope is statistically significant (p={p_value:.4f} < 0.1)</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"<div style='color: red; font-weight: bold;'>Slope is NOT statistically significant (p={p_value:.4f} ≥ 0.1)</div>", unsafe_allow_html=True)
+            
             # Display equation
             if 'equation' in model_info:
                 st.write(f"**Equation:** {model_info['equation']}")
@@ -410,6 +422,19 @@ def display_individual_stock_results(results, ticker):
             st.subheader("Model Performance")
             st.metric("R\u00b2 Score", f"{model_perf.get('r2_score', 0):.4f}")
             st.metric("Correlation", f"{model_perf.get('correlation', 0):.4f}")
+            
+            # Display slope significance
+            if 'slope_significance' in model_perf:
+                sig_info = model_perf['slope_significance']
+                is_significant = sig_info.get('is_significant', False)
+                p_value = sig_info.get('p_value', np.nan)
+                
+                if not np.isnan(p_value):
+                    if is_significant:
+                        st.markdown(f"<div style='color: green; font-weight: bold;'>Slope is statistically significant (p={p_value:.4f} < 0.1)</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"<div style='color: red; font-weight: bold;'>Slope is NOT statistically significant (p={p_value:.4f} ≥ 0.1)</div>", unsafe_allow_html=True)
+            
             if 'equation' in model_perf:
                 st.write(f"**Equation:** {model_perf['equation']}")
         
