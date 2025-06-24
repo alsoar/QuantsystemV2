@@ -41,6 +41,9 @@ def main():
             'Momentum': ['priceChange52w', 'rsi', 'earningsGrowth']
         }
     
+    if 'show_outliers' not in st.session_state:
+        st.session_state.show_outliers = True
+    
     # Create tabs
     tab1, tab2, tab3 = st.tabs(["Input Factors", "Sector Analysis", "Individual Stock Analysis"])
     
@@ -144,6 +147,14 @@ def create_input_factors_tab():
     for factor_group, selected_metrics in st.session_state.selected_factors.items():
         if selected_metrics:
             st.write(f"**{factor_group}**: {len(selected_metrics)} factors")
+    
+    # Add outlier display control
+    st.subheader("Display Options")
+    st.session_state.show_outliers = st.checkbox(
+        "Display outliers in analysis", 
+        value=st.session_state.show_outliers,
+        help="When unchecked, outliers will be hidden from the scatter plots and analysis"
+    )
 
 def create_sector_analysis_tab():
     st.header("Sector Analysis")
@@ -181,7 +192,7 @@ def create_sector_analysis_tab():
         
         if results is not None:
             # Create scatter plot
-            fig = create_sector_scatter_plot(results, selected_stock)
+            fig = create_sector_scatter_plot(results, selected_stock, st.session_state.show_outliers)
             st.plotly_chart(fig, use_container_width=True)
             
             # Display model statistics
@@ -232,7 +243,7 @@ def get_top_stocks_by_sector(data, sector, n=50):
     top_stocks = sector_data.nlargest(n, 'marketCap')
     return top_stocks['symbol'].tolist()
 
-def create_sector_scatter_plot(results, highlighted_stock=None):
+def create_sector_scatter_plot(results, highlighted_stock=None, show_outliers=True):
     """Create scatter plot for sector analysis"""
     fig = go.Figure()
     
@@ -257,8 +268,8 @@ def create_sector_scatter_plot(results, highlighted_stock=None):
                 name='Companies'
             ))
         
-        # Add outliers with different styling
-        if not outlier_stocks.empty:
+        # Add outliers with different styling only if show_outliers is True
+        if show_outliers and not outlier_stocks.empty:
             fig.add_trace(go.Scatter(
                 x=outlier_stocks['fundamental_zscore'],
                 y=outlier_stocks['pe_ratio'],
@@ -375,6 +386,25 @@ def display_sector_stats(results, selected_stock):
                     st.markdown(f"<div style='color: red; font-weight: bold;'>Overvalued by {diff:.2f}</div>", unsafe_allow_html=True)
                 else:
                     st.markdown(f"<div style='color: green; font-weight: bold;'>Undervalued by {abs(diff):.2f}</div>", unsafe_allow_html=True)
+                
+                # Fair price calculation and display
+                if 'price' in stock_data or 'currentPrice' in stock_data:
+                    current_price = stock_data.get('price', stock_data.get('currentPrice', 0))
+                    if current_price > 0:
+                        # Calculate fair price ratio
+                        pe_ratio = predicted_pe / actual_pe if actual_pe != 0 else 1
+                        fair_price = current_price * pe_ratio
+                        upside_downside = ((fair_price - current_price) / current_price) * 100
+                        
+                        st.subheader("Fair Price Analysis")
+                        st.metric("Current Price", f"${current_price:.2f}")
+                        st.metric("Fair Price", f"${fair_price:.2f}")
+                        
+                        # Color-coded upside/downside display
+                        if upside_downside > 0:
+                            st.markdown(f"<div style='color: green; font-weight: bold; font-size: 18px;'>Upside: +{upside_downside:.1f}%</div>", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"<div style='color: red; font-weight: bold; font-size: 18px;'>Downside: {upside_downside:.1f}%</div>", unsafe_allow_html=True)
     
     # Display factor weights
     if hasattr(results, 'attrs') and 'model_info' in results.attrs:
@@ -412,6 +442,34 @@ def display_individual_stock_results(results, ticker):
             st.markdown(f"<div style='color: red; font-weight: bold; font-size: 20px;'>Overvalued by {diff:.2f}</div>", unsafe_allow_html=True)
         else:
             st.markdown(f"<div style='color: green; font-weight: bold; font-size: 20px;'>Undervalued by {abs(diff):.2f}</div>", unsafe_allow_html=True)
+    
+    # Fair price calculation and display
+    if 'current_price' in results and results['current_price'] > 0:
+        actual_pe = results.get('actual_pe', 0)
+        predicted_pe = results.get('predicted_pe', 0)
+        current_price = results['current_price']
+        
+        if actual_pe != 0:
+            # Calculate fair price ratio
+            pe_ratio = predicted_pe / actual_pe
+            fair_price = current_price * pe_ratio
+            upside_downside = ((fair_price - current_price) / current_price) * 100
+            
+            st.subheader("Fair Price Analysis")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Current Price", f"${current_price:.2f}")
+            
+            with col2:
+                st.metric("Fair Price", f"${fair_price:.2f}")
+            
+            with col3:
+                # Color-coded upside/downside display
+                if upside_downside > 0:
+                    st.markdown(f"<div style='color: green; font-weight: bold; font-size: 20px;'>Upside: +{upside_downside:.1f}%</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<div style='color: red; font-weight: bold; font-size: 20px;'>Downside: {upside_downside:.1f}%</div>", unsafe_allow_html=True)
     
     # Display model performance for individual stock
     if 'model_performance' in results:
@@ -485,7 +543,7 @@ def display_individual_stock_results(results, ticker):
             # Append the stock to the plot data
             plot_data = pd.concat([plot_data, stock_row], ignore_index=True)
         
-        fig = create_enhanced_sector_scatter_plot(plot_data, ticker, results.get('factor_zscores', {}))
+        fig = create_enhanced_sector_scatter_plot(plot_data, ticker, results.get('factor_zscores', {}), st.session_state.show_outliers)
         st.subheader(f"{ticker} vs {results['sector']} Sector Peers")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -582,7 +640,7 @@ def get_zscore_interpretation(zscore):
     else:
         return "Very Low (-2σ)"
 
-def create_enhanced_sector_scatter_plot(results, highlighted_stock=None, factor_zscores=None):
+def create_enhanced_sector_scatter_plot(results, highlighted_stock=None, factor_zscores=None, show_outliers=True):
     """Create enhanced scatter plot with factor z-scores overlay"""
     fig = go.Figure()
     
@@ -607,8 +665,8 @@ def create_enhanced_sector_scatter_plot(results, highlighted_stock=None, factor_
                 name='Companies'
             ))
         
-        # Add outliers with different styling
-        if not outlier_stocks.empty:
+        # Add outliers with different styling only if show_outliers is True
+        if show_outliers and not outlier_stocks.empty:
             fig.add_trace(go.Scatter(
                 x=outlier_stocks['fundamental_zscore'],
                 y=outlier_stocks['pe_ratio'],

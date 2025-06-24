@@ -347,18 +347,20 @@ class FactorCalculator:
         # Step 2: Calculate factor scores
         df = self.calculate_factor_scores(df, selected_factors)
         
-        # Step 3: Filter outliers using iterative 2.5 std dev method
-        # Use 2.5 standard deviation threshold as specified
-        df = self.filter_outliers_iterative_25std(df, column='pe_ratio')
+        # Step 3: Identify outliers using 3 standard deviations as specified
+        # Calculate mean and std dev for P/E ratios
+        pe_mean = df['pe_ratio'].mean()
+        pe_std = df['pe_ratio'].std()
         
-        # Step 3.1: For modeling, exclude outliers but keep them for individual analysis
-        # Store original data with outlier flags for later use
-        df['outlier_excluded_for_modeling'] = df['is_outlier'].copy()
-        modeling_df = df[df['is_outlier'] != True].copy()
+        # Mark outliers as companies 3 standard deviations above or below the mean
+        df['is_outlier'] = (
+            (df['pe_ratio'] < pe_mean - 3 * pe_std) |
+            (df['pe_ratio'] > pe_mean + 3 * pe_std)
+        )
         
         # Step 4: Remove rows with missing P/E ratios or negative P/E ratios
-        modeling_df = modeling_df[modeling_df['pe_ratio'].notna()]
-        modeling_df = modeling_df[modeling_df['pe_ratio'] > 0]
+        df = df[df['pe_ratio'].notna()]
+        df = df[df['pe_ratio'] > 0]
         
         # Step 5: Get factor score columns
         factor_cols = self.get_factor_score_columns(selected_factors)
@@ -366,14 +368,16 @@ class FactorCalculator:
         # Step 6: Remove rows where all factor scores are NaN
         if factor_cols:
             # Only check for columns that actually exist in the DataFrame
-            existing_factor_cols = [col for col in factor_cols if col in modeling_df.columns]
+            existing_factor_cols = [col for col in factor_cols if col in df.columns]
             if existing_factor_cols:
-                modeling_df = modeling_df[modeling_df[existing_factor_cols].notna().any(axis=1)]
+                df = df[df[existing_factor_cols].notna().any(axis=1)]
             else:
                 # If no factor score columns exist, return empty DataFrame
                 return None
         
-        return modeling_df
+        # Return ALL data (including outliers) with outlier flags
+        # The model training will decide which data to use for regression
+        return df
     
     def prepare_data_for_individual_analysis(self, data: pd.DataFrame, selected_factors: Dict[str, List[str]]) -> Optional[pd.DataFrame]:
         """

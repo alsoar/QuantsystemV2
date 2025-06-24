@@ -154,44 +154,51 @@ class ModelEngine:
         if not existing_factor_cols:
             return None
         
-        X = prepared_data[existing_factor_cols].fillna(0)  # Fill NaN with 0 for missing factor scores
-        y = prepared_data['pe_ratio']
+        # For model training, exclude outliers from regression but keep all data for visualization
+        training_data = prepared_data[prepared_data['is_outlier'] != True].copy()
         
-        # Remove any remaining NaN values
-        valid_mask = ~(X.isna().any(axis=1) | y.isna())
-        X = X[valid_mask]
-        y = y[valid_mask]
+        # Check if we have enough non-outlier data for training
+        if len(training_data) < 5:
+            return None
         
-        if len(X) < 5:  # Need minimum data after cleaning
+        X_train = training_data[existing_factor_cols].fillna(0)  # Fill NaN with 0 for missing factor scores
+        y_train = training_data['pe_ratio']
+        
+        # Remove any remaining NaN values from training data
+        valid_mask = ~(X_train.isna().any(axis=1) | y_train.isna())
+        X_train = X_train[valid_mask]
+        y_train = y_train[valid_mask]
+        
+        if len(X_train) < 5:  # Need minimum data after cleaning
             return None
         
         try:
-            # Step 1: Optimize factor weights for positive correlation
-            optimized_weights = self.optimize_factor_weights_for_positive_correlation(X, y)
+            # Step 1: Optimize factor weights for positive correlation (using training data only)
+            optimized_weights = self.optimize_factor_weights_for_positive_correlation(X_train, y_train)
             
-            # Step 2: Create weighted fundamental score
-            fundamental_scores = np.sum(X.values * optimized_weights, axis=1)
+            # Step 2: Create weighted fundamental score (using training data only)
+            fundamental_scores_train = np.sum(X_train.values * optimized_weights, axis=1)
             
-            # Step 3: Run linear regression between weighted fundamental score and P/E ratios
+            # Step 3: Run linear regression between weighted fundamental score and P/E ratios (using training data only)
             final_model = LinearRegression()
-            fundamental_scores_reshaped = fundamental_scores.reshape(-1, 1)
-            final_model.fit(fundamental_scores_reshaped, y)
+            fundamental_scores_train_reshaped = fundamental_scores_train.reshape(-1, 1)
+            final_model.fit(fundamental_scores_train_reshaped, y_train)
             
-            # Make predictions using the linear model
-            y_pred = final_model.predict(fundamental_scores_reshaped)
+            # Make predictions using the linear model (on training data for metrics)
+            y_pred_train = final_model.predict(fundamental_scores_train_reshaped)
             
-            # Calculate performance metrics
-            r2 = r2_score(y, y_pred)
-            mse = mean_squared_error(y, y_pred)
+            # Calculate performance metrics (based on training data only, excluding outliers)
+            r2 = r2_score(y_train, y_pred_train)
+            mse = mean_squared_error(y_train, y_pred_train)
             
-            # Calculate correlation to verify it's positive
-            correlation = np.corrcoef(fundamental_scores, y)[0, 1]
+            # Calculate correlation to verify it's positive (training data only)
+            correlation = np.corrcoef(fundamental_scores_train, y_train)[0, 1]
             
-            # Calculate significance test for slope at p = 0.1
-            significance_test = self.calculate_slope_significance(fundamental_scores, y.values, alpha=0.1)
+            # Calculate significance test for slope at p = 0.1 (training data only)
+            significance_test = self.calculate_slope_significance(fundamental_scores_train, y_train.values, alpha=0.1)
             
-            # Calculate residuals for fair value line
-            residuals = y - y_pred
+            # Calculate residuals for fair value line (training data only)
+            residuals = y_train - y_pred_train
             residual_std = residuals.std()
             
             # Get the linear equation parameters
@@ -206,21 +213,25 @@ class ModelEngine:
                 'r2_score': r2,
                 'mse': mse,
                 'residual_std': residual_std,
-                'n_samples': len(X),
+                'n_samples': len(X_train),
                 'slope': slope,
                 'intercept': intercept,
                 'correlation': correlation,
                 'equation': f'P/E = {slope:.4f} × Fundamental_Score + {intercept:.4f}',
-                'pe_mean': y.mean(),
-                'pe_std': y.std(),
+                'pe_mean': y_train.mean(),
+                'pe_std': y_train.std(),
                 'slope_significance': significance_test
             }
             
-            # Add predictions to prepared data
-            prepared_data = prepared_data[valid_mask].copy()
-            prepared_data['predicted_pe'] = y_pred
-            prepared_data['residuals'] = residuals
-            prepared_data['fundamental_zscore'] = fundamental_scores
+            # Add predictions to ALL prepared data (including outliers)
+            # Calculate fundamental scores for all data points
+            X_all = prepared_data[existing_factor_cols].fillna(0)
+            fundamental_scores_all = np.sum(X_all.values * optimized_weights, axis=1)
+            
+            # Make predictions for all data points
+            prepared_data['predicted_pe'] = final_model.predict(fundamental_scores_all.reshape(-1, 1))
+            prepared_data['residuals'] = prepared_data['pe_ratio'] - prepared_data['predicted_pe']
+            prepared_data['fundamental_zscore'] = fundamental_scores_all
             
             model_info['data'] = prepared_data
             
@@ -271,23 +282,8 @@ class ModelEngine:
             # Store model for future use
             self.models[sector] = model_info
             
-            # Return the prepared data with predictions
+            # Return the prepared data with predictions (already includes outliers)
             result_data = model_info['data'].copy()
-            
-            # For plotting, also prepare data that includes outliers for visualization
-            plot_data = self.factor_calculator.prepare_data_for_individual_analysis(data[data['sector'] == sector], selected_factors)
-            if plot_data is not None:
-                # Add predictions for all data points (including outliers)
-                factor_cols = self.factor_calculator.get_factor_score_columns(selected_factors)
-                if factor_cols:
-                    existing_factor_cols = [col for col in factor_cols if col in plot_data.columns]
-                    if existing_factor_cols:
-                        X_plot = plot_data[existing_factor_cols].fillna(0)
-                        plot_data['predicted_pe'] = model_info['final_model'].predict(X_plot)
-                        plot_data['residuals'] = plot_data['pe_ratio'] - plot_data['predicted_pe']
-                        plot_data['fundamental_zscore'] = self.calculate_fundamental_zscore(plot_data, selected_factors)
-                
-                result_data = plot_data  # Use the full dataset for plotting
             
             # Add model performance info
             result_data.attrs['model_info'] = {
