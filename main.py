@@ -60,7 +60,7 @@ def create_input_factors_tab():
     st.header("Factor Selection")
     st.markdown("Select which factors to include in the fundamental analysis model:")
     
-    # Define all available factors
+    # Define all available factors with explanations
     all_factors = {
         'Risk Aversion': {
             'maxDrawdown': 'Max Drawdown (12 months)',
@@ -99,6 +99,42 @@ def create_input_factors_tab():
         }
     }
     
+    # Factor category explanations
+    factor_explanations = {
+        'Risk Aversion': 'Measures financial stability and risk - lower risk companies typically have higher valuations',
+        'Quality': 'Measures how efficiently a company uses its assets and equity to generate profits',
+        'Momentum': 'Measures recent price and earnings performance - positive momentum often continues short-term',
+        'Size': 'Measures company scale - larger companies often trade at different valuations than smaller ones',
+        'Growth': 'Measures how fast key financial metrics are expanding - higher growth typically commands premium valuations',
+        'Profitability': 'Measures profit efficiency at different business levels - more profitable companies often trade at higher multiples',
+        'Liquidity': 'Measures ability to meet short-term obligations - better liquidity reduces financial risk'
+    }
+    
+    # Individual metric explanations
+    metric_explanations = {
+        'maxDrawdown': 'Largest peak-to-trough decline in stock price over 12 months - lower values indicate less volatile stocks',
+        'debtToEquity': 'Total debt divided by shareholders equity - lower ratios indicate less financial leverage',
+        'volatility': 'Standard deviation of daily returns - measures how much the stock price fluctuates',
+        'returnOnEquity': 'Net income divided by shareholders equity - measures how efficiently equity generates profits',
+        'returnOnAssets': 'Net income divided by total assets - measures how efficiently assets generate profits',
+        'operatingMargin': 'Operating income divided by revenue - measures operational efficiency before interest and taxes',
+        'priceChange52w': 'Stock price change over the past 52 weeks - positive values indicate upward momentum',
+        'rsi': 'Relative Strength Index (0-100) - measures if stock is overbought (>70) or oversold (<30)',
+        'earningsGrowth': 'Year-over-year change in earnings per share - higher growth often supports higher valuations',
+        'marketCap': 'Share price times shares outstanding - total market value of the company',
+        'totalAssets': 'Sum of all assets on the balance sheet - measures company size by asset base',
+        'enterpriseValue': 'Market cap plus debt minus cash - measures total company value including debt',
+        'revenueGrowth': 'Year-over-year change in total revenue - indicates business expansion rate',
+        'epsGrowth': 'Year-over-year change in earnings per share - key measure of profit growth',
+        'cashFlowGrowth': 'Year-over-year change in operating cash flow - measures actual cash generation growth',
+        'grossMargin': 'Gross profit divided by revenue - measures profitability after direct costs',
+        'ebitdaMargin': 'EBITDA divided by revenue - measures profitability before interest, taxes, depreciation',
+        'netProfitMargin': 'Net income divided by revenue - measures bottom-line profitability',
+        'currentRatio': 'Current assets divided by current liabilities - measures short-term liquidity (>1 is good)',
+        'quickRatio': 'Quick assets divided by current liabilities - stricter liquidity measure excluding inventory',
+        'interestCoverage': 'Operating income divided by interest expense - measures ability to pay debt interest'
+    }
+    
     # Create nested checkboxes
     for factor_group, metrics in all_factors.items():
         col1, col2 = st.columns([1, 4])
@@ -113,7 +149,8 @@ def create_input_factors_tab():
             parent_checked = st.checkbox(
                 factor_group, 
                 value=all_selected,
-                key=f"parent_{factor_group}"
+                key=f"parent_{factor_group}",
+                help=factor_explanations.get(factor_group, "")
             )
             
             # Update all children when parent is clicked
@@ -131,7 +168,8 @@ def create_input_factors_tab():
                 checked = st.checkbox(
                     metric_name,
                     value=metric_key in st.session_state.selected_factors[factor_group],
-                    key=f"child_{factor_group}_{metric_key}"
+                    key=f"child_{factor_group}_{metric_key}",
+                    help=metric_explanations.get(metric_key, "")
                 )
                 
                 if checked and metric_key not in st.session_state.selected_factors[factor_group]:
@@ -341,18 +379,20 @@ def display_sector_stats(results, selected_stock):
     
     with col1:
         st.subheader("Sector Statistics")
-        st.metric("Number of Companies", len(results))
-        st.metric("Average P/E Ratio", f"{results['pe_ratio'].mean():.2f}")
-        st.metric("P/E Standard Deviation", f"{results['pe_ratio'].std():.2f}")
+        st.markdown("*Basic statistics for companies in the selected sector*")
+        st.metric("Number of Companies", len(results), help="Total number of companies analyzed in this sector")
+        st.metric("Average P/E Ratio", f"{results['pe_ratio'].mean():.2f}", help="Mean price-to-earnings ratio across all sector companies")
+        st.metric("P/E Standard Deviation", f"{results['pe_ratio'].std():.2f}", help="Measure of P/E ratio variability - higher values indicate more diverse valuations")
     
     with col2:
         if hasattr(results, 'attrs') and 'model_info' in results.attrs:
             model_info = results.attrs['model_info']
             st.subheader("Model Performance")
-            st.metric("R\u00b2 Score", f"{model_info.get('r2_score', 0):.4f}")
-            st.metric("Correlation", f"{model_info.get('correlation', 0):.4f}")
-            st.metric("Slope", f"{model_info.get('slope', 0):.4f}")
-            st.metric("Intercept", f"{model_info.get('intercept', 0):.4f}")
+            st.markdown("*How well fundamental factors predict P/E ratios*")
+            st.metric("R² Score", f"{model_info.get('r2_score', 0):.4f}", help="Coefficient of determination (0-1) - measures how well the model explains P/E variation. Higher is better.")
+            st.metric("Correlation", f"{model_info.get('correlation', 0):.4f}", help="Linear relationship strength between predicted and actual P/E ratios (-1 to 1). Values closer to ±1 are stronger.")
+            st.metric("Slope", f"{model_info.get('slope', 0):.4f}", help="Rate of P/E change per unit of fundamental strength. Positive slope means stronger fundamentals = higher P/E.")
+            st.metric("Intercept", f"{model_info.get('intercept', 0):.4f}", help="Expected P/E ratio when fundamental Z-score is zero (average fundamental strength).")
             
             # Display slope significance
             if 'slope_significance' in model_info:
@@ -374,11 +414,12 @@ def display_sector_stats(results, selected_stock):
         if selected_stock in results['symbol'].values:
             stock_data = results[results['symbol'] == selected_stock].iloc[0]
             st.subheader(f"{selected_stock} Analysis")
-            st.metric("Actual P/E", f"{stock_data['pe_ratio']:.2f}")
+            st.markdown("*Valuation analysis for the selected stock*")
+            st.metric("Actual P/E", f"{stock_data['pe_ratio']:.2f}", help="Current price-to-earnings ratio - what investors are paying per dollar of earnings")
             if 'predicted_pe' in stock_data:
                 predicted_pe = stock_data['predicted_pe']
                 actual_pe = stock_data['pe_ratio']
-                st.metric("Predicted P/E", f"{predicted_pe:.2f}")
+                st.metric("Predicted P/E", f"{predicted_pe:.2f}", help="Model-predicted P/E based on fundamental factors - what the P/E 'should be' given company fundamentals")
                 diff = actual_pe - predicted_pe
                 
                 # Color-coded over/undervalued display
@@ -397,8 +438,9 @@ def display_sector_stats(results, selected_stock):
                         upside_downside = ((fair_price - current_price) / current_price) * 100
                         
                         st.subheader("Fair Price Analysis")
-                        st.metric("Current Price", f"${current_price:.2f}")
-                        st.metric("Fair Price", f"${fair_price:.2f}")
+                        st.markdown("*Stock price analysis based on fundamental valuation*")
+                        st.metric("Current Price", f"${current_price:.2f}", help="Current market price per share")
+                        st.metric("Fair Price", f"${fair_price:.2f}", help="Estimated fair value based on fundamental analysis - current price adjusted by P/E over/undervaluation")
                         
                         # Color-coded upside/downside display
                         if upside_downside > 0:
@@ -411,6 +453,8 @@ def display_sector_stats(results, selected_stock):
         model_info = results.attrs['model_info']
         if 'factor_weights' in model_info:
             st.subheader("Factor Weights")
+            st.markdown("*How much each factor category contributes to the P/E prediction*")
+            st.caption("💡 Higher absolute weights indicate factors that have stronger influence on P/E ratios")
             weights_df = pd.DataFrame([
                 {'Factor': factor.replace('_factor_score', ''), 'Weight': f"{weight:.4f}"}
                 for factor, weight in model_info['factor_weights'].items()
@@ -424,16 +468,17 @@ def display_sector_stats(results, selected_stock):
 def display_individual_stock_results(results, ticker):
     """Display individual stock analysis results"""
     st.subheader(f"Analysis Results for {ticker}")
+    st.markdown("*Comprehensive valuation analysis based on fundamental factors*")
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("Sector", results.get('sector', 'N/A'))
-        st.metric("Actual P/E", f"{results.get('actual_pe', 0):.2f}")
+        st.metric("Sector", results.get('sector', 'N/A'), help="Industry sector classification")
+        st.metric("Actual P/E", f"{results.get('actual_pe', 0):.2f}", help="Current price-to-earnings ratio - what investors are paying per dollar of earnings")
     
     with col2:
-        st.metric("Predicted P/E", f"{results.get('predicted_pe', 0):.2f}")
-        st.metric("Fundamental Score", f"{results.get('fundamental_zscore', 0):.4f}")
+        st.metric("Predicted P/E", f"{results.get('predicted_pe', 0):.2f}", help="Model-predicted P/E based on fundamental factors - what the P/E 'should be' given company fundamentals")
+        st.metric("Fundamental Score", f"{results.get('fundamental_zscore', 0):.4f}", help="Overall fundamental strength Z-score vs sector peers - positive means above-average fundamentals")
     
     with col3:
         diff = results.get('actual_pe', 0) - results.get('predicted_pe', 0)
@@ -456,13 +501,14 @@ def display_individual_stock_results(results, ticker):
             upside_downside = ((fair_price - current_price) / current_price) * 100
             
             st.subheader("Fair Price Analysis")
+            st.markdown("*Stock price analysis based on fundamental valuation*")
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                st.metric("Current Price", f"${current_price:.2f}")
+                st.metric("Current Price", f"${current_price:.2f}", help="Current market price per share")
             
             with col2:
-                st.metric("Fair Price", f"${fair_price:.2f}")
+                st.metric("Fair Price", f"${fair_price:.2f}", help="Estimated fair value based on fundamental analysis - current price adjusted by P/E over/undervaluation")
             
             with col3:
                 # Color-coded upside/downside display
@@ -478,8 +524,9 @@ def display_individual_stock_results(results, ticker):
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("Model Performance")
-            st.metric("R\u00b2 Score", f"{model_perf.get('r2_score', 0):.4f}")
-            st.metric("Correlation", f"{model_perf.get('correlation', 0):.4f}")
+            st.markdown("*How well the model performed for this sector*")
+            st.metric("R² Score", f"{model_perf.get('r2_score', 0):.4f}", help="Coefficient of determination (0-1) - measures how well the model explains P/E variation. Higher is better.")
+            st.metric("Correlation", f"{model_perf.get('correlation', 0):.4f}", help="Linear relationship strength between predicted and actual P/E ratios (-1 to 1). Values closer to ±1 are stronger.")
             
             # Display slope significance
             if 'slope_significance' in model_perf:
@@ -555,6 +602,8 @@ def display_factor_zscores(results, selected_stock):
     stock_data = results[results['symbol'] == selected_stock].iloc[0]
     
     st.subheader(f"Factor Z-Scores for {selected_stock}")
+    st.markdown("*How this stock compares to sector average for each factor category*")
+    st.caption("💡 Z-scores show standard deviations from sector mean. Positive = above average, negative = below average")
     
     # Get all factor score columns
     factor_cols = [col for col in stock_data.index if col.endswith('_factor_score')]
@@ -575,6 +624,8 @@ def display_factor_zscores(results, selected_stock):
     
     # Also show individual metric z-scores
     st.subheader(f"Individual Metric Z-Scores for {selected_stock}")
+    st.markdown("*Detailed breakdown of each individual metric vs sector average*")
+    st.caption("💡 Shows which specific metrics are driving the overall factor scores")
     metric_zscores = []
     
     for col in stock_data.index:
